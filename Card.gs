@@ -1,6 +1,6 @@
 /*
  * AI Email Polisher & Calendar Sync Project
- * Custom UI built with Google Workspace CardService
+ * Frontend UI logic
  */
 
 /**
@@ -8,40 +8,37 @@
  * @returns {Card} - The UI card.
  */
 function buildHomepageCard() {
-  // 1. Create a new card builder
   const cardBuilder = CardService.newCardBuilder();
 
-  // 2. Create the Header
+  // 1. Header
   const cardHeader = CardService.newCardHeader();
-  // Using a 'magic wand' icon to represent AI polishing
   cardHeader.setImageUrl('https://fonts.gstatic.com/s/i/googlematerialicons/auto_fix_high/v6/black-24dp/1x/gm_auto_fix_high_black_24dp.png');
   cardHeader.setImageStyle(CardService.ImageStyle.CIRCLE);
   cardHeader.setTitle("AI Email Polisher");
   cardHeader.setSubtitle("Draft perfectly toned replies");
   cardBuilder.setHeader(cardHeader);
 
-  // 3. Create the Input Section
+  // 2. Input Section
   const inputSection = CardService.newCardSection();
 
-  // -- Widget A: Tone Selector (Dropdown) --
+  // Widget A: Tone Selector
   const toneDropdown = CardService.newSelectionInput()
     .setType(CardService.SelectionInputType.DROPDOWN)
     .setTitle("Select Response Tone")
-    .setFieldName("selectedTone") // Key to retrieve value later
-    .addItem("Professional", "professional", true) // Default
-    .addItem("Friendly/Casual", "friendly", false)
-    .addItem("Assertive", "assertive", false)
-    .addItem("Empathetic", "empathetic", false);
+    .setFieldName("selectedTone")
+    .addItem("Professional", "Professional", true)
+    .addItem("Friendly/Casual", "Friendly", false)
+    .addItem("Assertive", "Assertive", false)
+    .addItem("Empathetic", "Empathetic", false);
   
   inputSection.addWidget(toneDropdown);
 
-  // -- Widget B: Calendar Sync (Switch) --
-  // We use a switch inside a DecoratedText for a cleaner UI look
+  // Widget B: Calendar Sync
   const calendarSwitch = CardService.newSwitch()
     .setControlType(CardService.SwitchControlType.SWITCH)
     .setFieldName("calendarSync")
     .setValue("true")
-    .setSelected(false); // Default to off
+    .setSelected(false);
 
   const calendarWidget = CardService.newDecoratedText()
     .setTopLabel("Integrations")
@@ -51,31 +48,29 @@ function buildHomepageCard() {
 
   inputSection.addWidget(calendarWidget);
 
-  // -- Widget C: The Rough Draft (Text Input) --
+  // Widget C: The Rough Draft
   const draftInput = CardService.newTextInput()
     .setFieldName("userDraft")
-    .setMultiline(true) // Allow multiple lines
+    .setMultiline(true)
     .setTitle("Your Rough Draft")
     .setHint("Paste your points or rough draft here...");
 
   inputSection.addWidget(draftInput);
 
-  // 4. Create the Action Section
+  // 3. Action Section
   const actionSection = CardService.newCardSection();
   const buttonSet = CardService.newButtonSet();
 
-  // Use the helper function to create the main trigger button
-  // This points to the 'onPolishEmail' function below
+  // Point to the 'onPolishEmail' function
   const polishButton = createFilledButton(
       'Polish My Reply', 
       'onPolishEmail', 
-      '#1a73e8' // Google Blue
+      '#1a73e8'
   );
   
   buttonSet.addButton(polishButton);
   actionSection.addWidget(buttonSet);
 
-  // 5. Assemble the card
   cardBuilder.addSection(inputSection);
   cardBuilder.addSection(actionSection);
 
@@ -83,22 +78,14 @@ function buildHomepageCard() {
 }
 
 /**
- * Creates a filled text button with the specified text, function, and color.
- * * @param {string} text - The text to display on the button.
- * @param {string} functionName - The name of the function to call when clicked.
- * @param {string} color - The background color of the button (Hex).
- * @returns {TextButton} - The created text button.
+ * Creates a filled text button style helper.
  */
 function createFilledButton(text, functionName, color) {
   const textButton = CardService.newTextButton();
   textButton.setText(text);
-  
-  // Set the button style to filled and apply color
   textButton.setTextButtonStyle(CardService.TextButtonStyle.FILLED);
   textButton.setBackgroundColor(color);
 
-  // Create the Action
-  // We add a SPINNER load indicator so the user knows the AI is processing
   const action = CardService.newAction()
       .setFunctionName(functionName)
       .setLoadIndicator(CardService.LoadIndicator.SPINNER);
@@ -108,44 +95,67 @@ function createFilledButton(text, functionName, color) {
 }
 
 /**
- * The Action Handler: This runs when the user clicks "Polish My Reply".
- * It retrieves the inputs from the UI.
- *
- * @param {Object} e - The event object containing form inputs.
+ * MAIN TRIGGER: Runs when the user clicks "Polish My Reply".
+ * This connects the frontend (Card.gs) to the backend (vertex.gs).
  */
 function onPolishEmail(e) {
-  // 1. Extract User Inputs using the field names defined in buildHomepageCard
+  // 1. Extract Data from UI
   const tone = e.formInput.selectedTone;
   const draft = e.formInput.userDraft;
-  const syncCalendar = e.formInput.calendarSync ? true : false;
+  // (Future implementation: Use syncCalendar to trigger Calendar API)
+  const syncCalendar = e.formInput.calendarSync; 
 
-  // 2. Basic Validation
+  // 2. Validation
   if (!draft || draft.trim() === "") {
-    return buildNotificationResponse("Please enter a draft before polishing.");
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText("Please enter a draft first."))
+      .build();
   }
 
-  // 3. Backend Logic Placeholder
-  // TODO: Connect this to your AI API (OpenAI/Gemini) and Calendar API
-  console.log("--- Processing Request ---");
-  console.log("Tone:", tone);
-  console.log("Calendar Sync:", syncCalendar);
-  console.log("Draft Length:", draft.length);
-  
-  // 4. Return a notification to the UI
-  return buildNotificationResponse(`Processing email with ${tone} tone...`);
+  try {
+    // 3. Prepare data for Vertex.gs
+    // Since vertex.gs only accepts one string argument, we combine tone and draft here.
+    const combinedInput = `(INSTRUCTION: Rewrite the text below in a ${tone} tone): \n\n"${draft}"`;
+
+    // 4. CALL THE AI (This calls the function in vertex.gs)
+    const aiResult = processEmail(combinedInput);
+
+    // 5. Show the Result
+    // We push a NEW card onto the stack to display the polished email.
+    return displayResultCard(aiResult);
+
+  } catch (error) {
+    console.error(error);
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification().setText("Error: " + error.message))
+      .build();
+  }
 }
 
 /**
- * Creates a notification response with the specified text.
- *
- * @param {string} notificationText - The text to display in the notification.
- * @returns {ActionResponse} - The created action response.
+ * Helper: Creates a new card to display the AI result.
  */
-function buildNotificationResponse(notificationText) {
-  const notification = CardService.newNotification()
-      .setText(notificationText);
-      
+function displayResultCard(polishedText) {
+  const cardBuilder = CardService.newCardBuilder();
+  const header = CardService.newCardHeader().setTitle("Polished Result");
+  cardBuilder.setHeader(header);
+
+  const section = CardService.newCardSection();
+
+  // Display the AI text
+  const textWidget = CardService.newTextInput()
+    .setFieldName("finalResult")
+    .setValue(polishedText)
+    .setMultiline(true)
+    .setTitle("Copy this text:");
+
+  section.addWidget(textWidget);
+  cardBuilder.addSection(section);
+
+  // Create a 'Go Back' navigation
+  const nav = CardService.newNavigation().pushCard(cardBuilder.build());
+  
   return CardService.newActionResponseBuilder()
-      .setNotification(notification)
-      .build();
+    .setNavigation(nav)
+    .build();
 }
