@@ -22,7 +22,7 @@ function buildAddOn(e) {
 
   const subject = message.getSubject();
   const from = message.getFrom();
-  const preview = message.getPlainBody().slice(0, 200); // first 200 chars
+  const preview = message.getPlainBody().slice(0, 200);
 
   // 3. Build a simple card showing the info
   const section = CardService.newCardSection()
@@ -31,13 +31,87 @@ function buildAddOn(e) {
       CardService.newTextParagraph().setText(`<b>Preview</b><br>${preview}`)
     );
 
+  // 4. Add buttons for actions
+  const buttonSection = CardService.newCardSection()
+    .addWidget(
+      CardService.newButtonSet()
+        .addButton(
+          CardService.newTextButton()
+            .setText("Summarize Email")
+            .setOnClickAction(
+              CardService.newAction()
+                .setFunctionName("handleSummarizeEmail")
+                .setParameters({ messageId: messageId })
+            )
+        )
+    );
+
   const card = CardService.newCardBuilder()
     .setHeader(
       CardService.newCardHeader().setTitle("Current email").setSubtitle(subject)
     )
     .addSection(section)
+    .addSection(buttonSection)
     .build();
 
   // Gmail add-ons expect an array of cards
   return [card];
+}
+
+function handleSummarizeEmail(e) {
+  const messageId = e.parameters.messageId;
+  const message = GmailApp.getMessageById(messageId);
+  const emailText = message.getPlainBody();
+  
+  try {
+    const summary = summarizeEmail(emailText);
+    
+    // Create a new card showing the summary
+    const card = CardService.newCardBuilder()
+      .setHeader(CardService.newCardHeader().setTitle("Email Summary"))
+      .addSection(
+        CardService.newCardSection()
+          .addWidget(
+            CardService.newTextParagraph().setText(summary)
+          )
+          .addWidget(
+            CardService.newTextButton()
+              .setText("Back")
+              .setOnClickAction(
+                CardService.newAction().setFunctionName("buildAddOn")
+              )
+          )
+      )
+      .build();
+    
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().pushCard(card))
+      .build();
+      
+  } catch (error) {
+    return showErrorCard(error.message);
+  }
+}
+
+function showErrorCard(errorMessage) {
+  const card = CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle("Error"))
+    .addSection(
+      CardService.newCardSection()
+        .addWidget(
+          CardService.newTextParagraph().setText(`An error occurred: ${errorMessage}`)
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText("Back")
+            .setOnClickAction(
+              CardService.newAction().setFunctionName("buildAddOn")
+            )
+        )
+    )
+    .build();
+  
+  return CardService.newActionResponseBuilder()
+    .setNavigation(CardService.newNavigation().pushCard(card))
+    .build();
 }
