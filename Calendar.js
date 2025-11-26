@@ -26,18 +26,3 @@ function createCalendarEvent(e) {
       .build();
   }
 }
-
-//test case
-function testCreateCalendarEvent() {
-  const fakeEvent = {
-    commonEventObject: {
-      parameters: {
-        title: "Test Meeting from Apps Script",
-        start: "2025-11-18T18:00:00Z",
-        end:   "2025-11-18T19:00:00Z"
-      }
-    }
-  };
-
-  createCalendarEvent(fakeEvent);
-}

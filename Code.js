@@ -22,29 +22,29 @@ function buildAddOn(e) {
 
   const subject = message.getSubject();
   const from = message.getFrom();
-  const preview = message.getPlainBody().slice(0, 200);
+  const preview = message.getPlainBody();
 
   // 3. Build a simple card showing the info
   const section = CardService.newCardSection()
-    .addWidget(CardService.newKeyValue().setTopLabel("From").setContent(from))
+    .addWidget(CardService.newTextParagraph().setText(`<b>From</b><br>${from}`))
     .addWidget(
       CardService.newTextParagraph().setText(`<b>Preview</b><br>${preview}`)
     );
 
   // 4. Add buttons for actions
-  const buttonSection = CardService.newCardSection()
-    .addWidget(
-      CardService.newButtonSet()
-        .addButton(
-          CardService.newTextButton()
-            .setText("Summarize Email")
-            .setOnClickAction(
-              CardService.newAction()
-                .setFunctionName("handleSummarizeEmail")
-                .setParameters({ messageId: messageId })
-            )
+  const buttonSection = CardService.newCardSection().addWidget(
+    CardService.newButtonSet().addButton(
+      CardService.newTextButton()
+        .setText("Summarize Email")
+        .setBackgroundColor("#4285f4")
+        .setOnClickAction(
+          CardService.newAction()
+            .setFunctionName("handleSummarizeEmail")
+            .setParameters({ messageId: messageId })
+            .setLoadIndicator(CardService.LoadIndicator.SPINNER)
         )
-    );
+    )
+  );
 
   const card = CardService.newCardBuilder()
     .setHeader(
@@ -62,18 +62,16 @@ function handleSummarizeEmail(e) {
   const messageId = e.parameters.messageId;
   const message = GmailApp.getMessageById(messageId);
   const emailText = message.getPlainBody();
-  
+
   try {
     const summary = summarizeEmail(emailText);
-    
+
     // Create a new card showing the summary
     const card = CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader().setTitle("Email Summary"))
       .addSection(
         CardService.newCardSection()
-          .addWidget(
-            CardService.newTextParagraph().setText(summary)
-          )
+          .addWidget(CardService.newTextParagraph().setText(summary))
           .addWidget(
             CardService.newTextButton()
               .setText("Back")
@@ -83,35 +81,11 @@ function handleSummarizeEmail(e) {
           )
       )
       .build();
-    
+
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().pushCard(card))
       .build();
-      
   } catch (error) {
     return showErrorCard(error.message);
   }
-}
-
-function showErrorCard(errorMessage) {
-  const card = CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle("Error"))
-    .addSection(
-      CardService.newCardSection()
-        .addWidget(
-          CardService.newTextParagraph().setText(`An error occurred: ${errorMessage}`)
-        )
-        .addWidget(
-          CardService.newTextButton()
-            .setText("Back")
-            .setOnClickAction(
-              CardService.newAction().setFunctionName("buildAddOn")
-            )
-        )
-    )
-    .build();
-  
-  return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().pushCard(card))
-    .build();
 }

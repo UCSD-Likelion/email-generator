@@ -70,7 +70,7 @@ function processEmail(emailText) {
  * Summarizes the given email
  *
  * @param {string} emailText - The text of the email to summarize.
- * @returns {string} - The summary of the given email
+ * @returns {string} - The draft of the reply of the given email
  */
 function summarizeEmail(emailText) {
   const apiURL = `https://${VERTEX_AI_LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${VERTEX_AI_LOCATION}/publishers/google/models/${MODEL_ID}:generateContent`;
