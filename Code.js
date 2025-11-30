@@ -1,7 +1,3 @@
-const PROJECT_ID = "email-generator-477702";
-const VERTEX_AI_LOCATION = "us-central1";
-const MODEL_ID = "gemini-2.5-flash";
-
 function buildAddOn(e) {
   console.log("buildAddOn called");
   console.log("e object:", JSON.stringify(e));
