@@ -6,7 +6,8 @@
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/script.external_request",
     "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
-    "https://www.googleapis.com/auth/script.locale"
+    "https://www.googleapis.com/auth/script.locale",
+    "https://www.googleapis.com/auth/calendar"
   ],
   "dependencies": {
     "enabledAdvancedServices": []
@@ -15,7 +16,7 @@
   "runtimeVersion": "V8",
   "addOns": {
     "common": {
-      "name": "Minimal Message Reader",
+      "name": "Compose X",
       "logoUrl": "https://raw.githubusercontent.com/UCSD-Likelion/email-generator/refs/heads/seah_logo/assets/cx_icon.png",
       "useLocaleFromApp": true
     },

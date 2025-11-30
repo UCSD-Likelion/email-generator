@@ -70,7 +70,7 @@ function processEmail(emailText) {
  * Summarizes the given email
  *
  * @param {string} emailText - The text of the email to summarize.
- * @returns {string} - The summary of the given email
+ * @returns {string} - The draft of the reply of the given email
  */
 function summarizeEmail(emailText) {
   const apiURL = `https://${VERTEX_AI_LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${VERTEX_AI_LOCATION}/publishers/google/models/${MODEL_ID}:generateContent`;
@@ -126,4 +126,86 @@ function summarizeEmail(emailText) {
   const inner = JSON.parse(parsed.candidates[0].content.parts[0].text);
 
   return inner.summary.trim();
+}
+
+function extractCalendarEvents(emailText) {
+  const apiURL = `https://${VERTEX_AI_LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${VERTEX_AI_LOCATION}/publishers/google/models/${MODEL_ID}:generateContent`;
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: [
+              "You are an assistant that extracts at most one calendar event from an email.",
+              "",
+              "Email:",
+              emailText,
+              "",
+              "Return JSON of the form:",
+              "{",
+              '  "calendarEvent": {',
+              '    "hasCalendarEvent": true/false,',
+              '    "title": "<short event title>",',
+              '    "start": "<ISO 8601 datetime>",',
+              '    "end": "<ISO 8601 datetime>"',
+              "  }",
+              "}",
+              "",
+              "If there is no clear event, set hasCalendarEvent to false.",
+            ].join("\n"),
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.9,
+      maxOutputTokens: 1024,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "object",
+        properties: {
+          calendarEvent: {
+            type: "object",
+            properties: {
+              hasCalendarEvent: { type: "boolean" },
+              title: { type: "string" },
+              start: { type: "string", format: "date-time" },
+              end: { type: "string", format: "date-time" },
+            },
+            required: ["hasCalendarEvent"],
+          },
+        },
+        required: ["calendarEvent"],
+      },
+    },
+  };
+
+  const options = {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ScriptApp.getOAuthToken()}`,
+    },
+    contentType: "application/json",
+    muteHttpExceptions: true, // Set to true to inspect the error response
+    payload: JSON.stringify(payload),
+  };
+
+  const response = UrlFetchApp.fetch(apiURL, options);
+
+  const statusCode = response.getResponseCode();
+  const body = response.getContentText();
+
+  if (statusCode !== 200) {
+    console.error("Vertex AI error:", statusCode, body);
+    throw new Error("Vertex AI API call failed: " + statusCode);
+  }
+
+  const parsed = JSON.parse(body);
+  const inner = JSON.parse(parsed.candidates[0].content.parts[0].text);
+
+  console.log("Extracted calendar event:", inner.calendarEvent);
+
+  return inner.calendarEvent;
 }
