@@ -66,19 +66,41 @@ function handleSummarizeEmail(e) {
   try {
     const summary = summarizeEmail(emailText);
 
+    const calendarEvent = extractCalendarEvents(emailText);
+
+    const section = CardService.newCardSection().addWidget(
+      CardService.newTextParagraph().setText(`<b>Summary</b><br>${summary}`)
+    );
+
+    if (calendarEvent.hasCalendarEvent) {
+      const action = CardService.newAction()
+        .setFunctionName("createCalendarEvent")
+        .setParameters({
+          title: calendarEvent.title,
+          start: calendarEvent.start,
+          end: calendarEvent.end,
+        });
+
+      const addToCalendarButton = CardService.newTextButton()
+        .setText("Add Event to Calendar")
+        .setOnClickAction(action)
+        .setBackgroundColor("#34A853");
+
+      section.addWidget(addToCalendarButton);
+    }
+
     // Create a new card showing the summary
     const card = CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader().setTitle("Email Summary"))
+      .addSection(section)
       .addSection(
-        CardService.newCardSection()
-          .addWidget(CardService.newTextParagraph().setText(summary))
-          .addWidget(
-            CardService.newTextButton()
-              .setText("Back")
-              .setOnClickAction(
-                CardService.newAction().setFunctionName("buildAddOn")
-              )
-          )
+        CardService.newCardSection().addWidget(
+          CardService.newTextButton()
+            .setText("Back")
+            .setOnClickAction(
+              CardService.newAction().setFunctionName("buildAddOn")
+            )
+        )
       )
       .build();
 

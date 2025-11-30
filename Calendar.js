@@ -6,6 +6,10 @@ function createCalendarEvent(e) {
     const start = new Date(params.start);
     const end = new Date(params.end);
 
+    if (!title || isNaN(start) || isNaN(end)) {
+      throw new Error("Invalid event parameters.");
+    }
+
     const calendar = CalendarApp.getDefaultCalendar();
 
     calendar.createEvent(title, start, end);
@@ -15,7 +19,6 @@ function createCalendarEvent(e) {
         CardService.newNotification().setText("Event added to Google Calendar!")
       )
       .build();
-
   } catch (err) {
     return CardService.newActionResponseBuilder()
       .setNotification(
