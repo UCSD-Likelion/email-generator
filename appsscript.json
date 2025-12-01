@@ -9,11 +9,15 @@
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/script.external_request",
-    "https://www.googleapis.com/auth/script.locale"
+    "https://www.googleapis.com/auth/script.locale",
+    "https://www.googleapis.com/auth/calendar"
   ],
+  "dependencies": {
+    "enabledAdvancedServices": []
+  },
   "addOns": {
     "common": {
-      "name": "Email AI Generator",
+      "name": "Compose X",
       "logoUrl": "https://raw.githubusercontent.com/UCSD-Likelion/email-generator/refs/heads/seah_logo/assets/cx_icon.png",
       "useLocaleFromApp": true,
       "homepageTrigger": {

@@ -1,131 +1,172 @@
-
+// ============================================
 // MAIN ENTRY POINT
-
+// ============================================
 
 function buildAddOn(e) {
-    console.log("buildAddOn called");
-    console.log("e object:", JSON.stringify(e));
+  console.log("buildAddOn called");
+  console.log("e object:", JSON.stringify(e));
+  
+  try {
+    // Reply mode: if messageID exists in messageMetadata
+    if (e && e.messageMetadata && e.messageMetadata.messageId) {
+      console.log("Reply mode detected");
+      return buildReplyCard(e);
+    } else {
+      // Compose mode: messageId does not exist
+      console.log("Compose mode detected");
+      return buildComposeCard();
+    }
+  } catch (error) {
+    console.error("Error in buildAddOn:", error);
+    throw error;
+  }
+}
+
+// ============================================
+// ACTION HANDLERS - COMPOSE MODE
+// ============================================
+
+function generateCompose(e) {
+  try {
+    const recipient = e.formInput.recipient || "";
+    const subject = e.formInput.subject || "";
+    const userInput = e.formInput.userInput;
     
-    try {
-      // Reply mode: if messageID exists in messageMetadata
-      if (e && e.messageMetadata && e.messageMetadata.messageId) {
-        console.log("Reply mode detected");
-        return buildReplyCard(e);
-      } else {
-        // Compose mode: messageId does not exist
-        console.log("Compose mode detected");
-        return buildComposeCard();
-      }
-    } catch (error) {
-      console.error("Error in buildAddOn:", error);
-      throw error;
+    if (!userInput || userInput.trim() === "") {
+      throw new Error("Please enter some content first.");
     }
-  }
-  
-  
-  // ACTION HANDLERS - COMPOSE MODE
-  
-  
-  function generateCompose(e) {
-    try {
-      const recipient = e.formInput.recipient || "";
-      const subject = e.formInput.subject || "";
-      const userInput = e.formInput.userInput;
-      
-      if (!userInput || userInput.trim() === "") {
-        throw new Error("Please enter some content first.");
-      }
-      
-      // Generate AI draft (calls Vertex.gs function)
-      const aiDraft = processComposeEmail(userInput, recipient, subject);
-      
-      // Build card with generated draft
-      const card = buildGeneratedDraftCard(aiDraft, userInput, recipient, subject);
-      
-      return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(card))
-        .build();
-        
-    } catch (error) {
-      console.error("Error generating compose:", error);
-      
-      const errorCard = buildErrorCard(error.message);
-      
-      return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(errorCard))
-        .build();
-    }
-  }
-  
-  function regenerateCompose(e) {
-    try {
-      const userInput = e.parameters.userInput;
-      const recipient = e.parameters.recipient || "";
-      const subject = e.parameters.subject || "";
-      
-      // Generate AI draft (calls Vertex.gs function)
-      const aiDraft = processComposeEmail(userInput, recipient, subject);
-      
-      const card = buildGeneratedDraftCard(aiDraft, userInput, recipient, subject, true);
-      
-      return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(card))
-        .build();
-        
-    } catch (error) {
-      console.error("Error regenerating:", error);
-      
-      const errorCard = buildErrorCard(error.message);
-      
-      return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(errorCard))
-        .build();
-    }
-  }
-  
-  function goBackToCompose(e) {
-    const cards = buildComposeCard();
+    
+    // Generate AI draft (calls Vertex.gs function)
+    const aiDraft = processComposeEmail(userInput, recipient, subject);
+    
+    // Build card with generated draft
+    const card = buildGeneratedDraftCard(aiDraft, userInput, recipient, subject);
+    
     return CardService.newActionResponseBuilder()
-      .setNavigation(CardService.newNavigation().updateCard(cards[0]))
+      .setNavigation(CardService.newNavigation().updateCard(card))
       .build();
+      
+  } catch (error) {
+    console.error("Error generating compose:", error);
+    return showErrorCard(error.message);
   }
-  
-  
-  // ACTION HANDLERS - REPLY MODE
-  
-  
-  function generateReply(e) {
-    try {
-      const messageId = e.parameters.messageId;
+}
+
+function regenerateCompose(e) {
+  try {
+    const userInput = e.parameters.userInput;
+    const recipient = e.parameters.recipient || "";
+    const subject = e.parameters.subject || "";
+    
+    // Generate AI draft (calls Vertex.gs function)
+    const aiDraft = processComposeEmail(userInput, recipient, subject);
+    
+    const card = buildGeneratedDraftCard(aiDraft, userInput, recipient, subject, true);
+    
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .build();
       
-      const message = GmailApp.getMessageById(messageId);
-      const subject = message.getSubject();
-      const from = message.getFrom();
-      const body = message.getPlainBody();
+  } catch (error) {
+    console.error("Error regenerating:", error);
+    return showErrorCard(error.message);
+  }
+}
+
+function goBackToCompose(e) {
+  const cards = buildComposeCard();
+  return CardService.newActionResponseBuilder()
+    .setNavigation(CardService.newNavigation().updateCard(cards[0]))
+    .build();
+}
+
+// ============================================
+// ACTION HANDLERS - REPLY MODE
+// ============================================
+
+function generateReply(e) {
+  try {
+    const messageId = e.parameters.messageId;
+    
+    const message = GmailApp.getMessageById(messageId);
+    const subject = message.getSubject();
+    const from = message.getFrom();
+    const body = message.getPlainBody();
+    
+    const maxBodyLength = 3000;
+    const trimmedBody = body.length > maxBodyLength 
+      ? body.slice(0, maxBodyLength) + "\n\n[... truncated for length ...]"
+      : body;
+    
+    const emailContext = `From: ${from}\nSubject: ${subject}\n\n${trimmedBody}`;
+    
+    // Generate AI reply (calls Vertex.gs function)
+    const aiReply = processEmail(emailContext);
+    
+    const card = buildGeneratedReplyCard(aiReply, messageId);
+    
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .build();
       
-      const maxBodyLength = 3000;
-      const trimmedBody = body.length > maxBodyLength 
-        ? body.slice(0, maxBodyLength) + "\n\n[... truncated for length ...]"
-        : body;
-      
-      const emailContext = `From: ${from}\nSubject: ${subject}\n\n${trimmedBody}`;
-      
-      // Generate AI reply (calls Vertex.gs function)
-      const aiReply = processEmail(emailContext);
-      
-      const card = buildGeneratedReplyCard(aiReply, messageId);
-      
-      return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(card))
-        .build();
-        
-    } catch (error) {
-      console.error("Error generating reply:", error);
-      
-      const errorCard = buildErrorCard(error.message);
-      
-      return CardService.newActionResponseBuilder()
-        .setNavigation(CardService.newNavigation().updateCard(errorCard))
-        .build();
+  } catch (error) {
+    console.error("Error generating reply:", error);
+    return showErrorCard(error.message);
+  }
+}
+
+// ============================================
+// ADDITIONAL FEATURE - EMAIL SUMMARIZATION 
+// ============================================
+
+function handleSummarizeEmail(e) {
+  const messageId = e.parameters.messageId;
+  const message = GmailApp.getMessageById(messageId);
+  const emailText = message.getPlainBody();
+
+  try {
+    const summary = summarizeEmail(emailText);
+    const calendarEvent = extractCalendarEvents(emailText);
+
+    const section = CardService.newCardSection().addWidget(
+      CardService.newTextParagraph().setText(`<b>Summary</b><br>${summary}`)
+    );
+
+    if (calendarEvent.hasCalendarEvent) {
+      const action = CardService.newAction()
+        .setFunctionName("createCalendarEvent")
+        .setParameters({
+          title: calendarEvent.title,
+          start: calendarEvent.start,
+          end: calendarEvent.end,
+        });
+
+      const addToCalendarButton = CardService.newTextButton()
+        .setText("Add Event to Calendar")
+        .setOnClickAction(action)
+        .setBackgroundColor("#34A853");
+
+      section.addWidget(addToCalendarButton);
     }
+
+    const card = CardService.newCardBuilder()
+      .setHeader(CardService.newCardHeader().setTitle("Email Summary"))
+      .addSection(section)
+      .addSection(
+        CardService.newCardSection().addWidget(
+          CardService.newTextButton()
+            .setText("Back")
+            .setOnClickAction(
+              CardService.newAction().setFunctionName("buildAddOn")
+            )
+        )
+      )
+      .build();
+
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().pushCard(card))
+      .build();
+  } catch (error) {
+    return showErrorCard(error.message);
   }
+}
