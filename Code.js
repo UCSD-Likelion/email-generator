@@ -23,6 +23,8 @@ function buildAddOn(e) {
   }
 }
 
+
+
 // ============================================
 // ACTION HANDLERS - COMPOSE MODE
 // Functions for generating and managing email drafts
@@ -119,7 +121,7 @@ function refreshLatestReply(e) {
         CardService.newButtonSet()
           .addButton(
             CardService.newTextButton()
-              .setText("Generate AI Reply")
+              .setText("✨ Generate AI Reply")
               .setOnClickAction(
                 CardService.newAction()
                   .setFunctionName("generateReply")
@@ -128,7 +130,7 @@ function refreshLatestReply(e) {
           )
           .addButton(
             CardService.newTextButton()
-              .setText("Summarize Email")
+              .setText("📄 Summarize Email")
               .setOnClickAction(
                 CardService.newAction()
                   .setFunctionName("handleSummarizeEmail")
@@ -140,7 +142,7 @@ function refreshLatestReply(e) {
         CardService.newButtonSet()
           .addButton(
             CardService.newTextButton()
-              .setText("Refresh Latest")
+              .setText("🔄 Refresh Latest")
               .setOnClickAction(
                 CardService.newAction()
                   .setFunctionName("refreshLatestReply")
@@ -152,7 +154,7 @@ function refreshLatestReply(e) {
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
-          .setTitle("Email Reply Assistant")
+          .setTitle("📧 Email Assistant")
       )
       .addSection(section)
       .build();
@@ -188,8 +190,16 @@ function generateReply(e) {
     
     const card = buildGeneratedReplyCard(aiReply, messageId);
     
-    return CardService.newActionResponseBuilder()
+    const draft = message.createDraftReply("", {
+      htmlBody: aiReply
+    });
+    
+    const updatedCard =  CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card))
+      .build();
+
+    return CardService.newComposeActionResponseBuilder()
+      .setGmailDraft(draft)
       .build();
       
   } catch (error) {
@@ -244,7 +254,7 @@ function handleSummarizeEmail(e) {
     }
 
     const card = CardService.newCardBuilder()
-      .setHeader(CardService.newCardHeader().setTitle("Email Summary"))
+      .setHeader(CardService.newCardHeader().setTitle("📄 Email Summary"))
       .addSection(section)
       .addSection(
         CardService.newCardSection().addWidget(
@@ -338,3 +348,63 @@ function testCreateCalendarEvent() {
   const result = createCalendarEvent(mockEvent);
   Logger.log(result);
 }
+
+/**
+   *  Creates a draft email (with an attachment and inline image)
+   *  as a reply to an existing message.
+   *  @param {Object} e An event object passed by the action.
+   *  @return {ComposeActionResponse}
+   */
+  function createReplyDraft(e) {
+    // Activate temporary Gmail scopes, in this case to allow
+    // a reply to be drafted.
+    var accessToken = e.gmail.accessToken;
+    GmailApp.setCurrentMessageAccessToken(accessToken);
+
+    // Creates a draft reply.
+    var messageId = e.gmail.messageId;
+    var message = GmailApp.getMessageById(messageId);
+    var draft = message.createDraftReply('',
+        {
+            htmlBody: "TESTING TESTING TESTING",
+        }
+    );
+
+    // Return a built draft response. This causes Gmail to present a
+    // compose window to the user, pre-filled with the content specified
+    // above.
+    return CardService.newComposeActionResponseBuilder()
+        .setGmailDraft(draft).build();
+  }
+
+function insertTemplateText(e) {
+  try{
+
+  if (!e.gmail || !e.gmail.composeId) {
+    // Maybe show a notification or do nothing
+    return CardService.newActionResponseBuilder()
+      .setNotification(
+        CardService.newNotification().setText('Open a compose window to insert text.')
+      )
+      .build();
+  }
+    const text =
+    "Hello,\n\n" +
+    "Thank you for reaching out.\n" +
+    "Please see the details below:\n\n" +
+    "Best regards,\n";
+
+  // Define how the body should be updated
+  
+  const bodyAction = CardService.newUpdateDraftBodyAction()
+    .addUpdateContent(text, CardService.ContentType.PLAIN_TEXT)
+    .setUpdateType(
+      CardService.UpdateDraftBodyType.IN_PLACE_INSERT
+    );
+
+  return CardService.newUpdateDraftActionResponseBuilder()
+    .setUpdateDraftBodyAction(bodyAction)
+    .build();
+  } catch (err) {
+    console.error("insert error: ", err);
+ }}
